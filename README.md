@@ -34,3 +34,9 @@ adb logcat | grep -i iching
 - INSTALL_FAILED_UPDATE_INCOMPATIBLE (signature mismatch):
   - `adb uninstall com.example.iching`
   - Alternative: change `applicationId` if you must keep the old install (not preferred).
+
+## Manual layout check
+
+- Portrait small phone: Consult, Cast, Interpretation, Viewer all usable without horizontal swipe.
+- Landscape phone: section buttons visible, text area readable, trigram selectors usable.
+- Emulator medium: verify spacing, buttons hit targets, text scroll only in content area.

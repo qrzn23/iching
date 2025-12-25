@@ -14,16 +14,26 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -41,9 +51,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -183,24 +193,25 @@ private fun AppTopBar(
     TopAppBar(
         title = {},
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = AppColors.Background
+            containerColor = AppColors.Background,
+            scrolledContainerColor = AppColors.Background
         ),
         actions = {
             Box {
-                AppButton(
+                AppIconButton(
                     text = "≡",
-                    onClick = { onMenuExpandedChange(true) },
-                    style = AppButtonStyle.GHOST
+                    onClick = { onMenuExpandedChange(true) }
                 )
                 DropdownMenu(
                     expanded = menuExpanded,
-                    onDismissRequest = { onMenuExpandedChange(false) }
+                    onDismissRequest = { onMenuExpandedChange(false) },
+                    modifier = Modifier
+                        .background(AppColors.MenuBackground, RoundedCornerShape(12.dp))
+                        .padding(6.dp)
+                        .widthIn(min = AppDimens.MenuMinWidth)
                 ) {
                     Column(
-                        modifier = Modifier
-                            .background(AppColors.MenuBackground, RoundedCornerShape(10.dp))
-                            .padding(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         AppButton(
                             text = "History",
@@ -248,7 +259,10 @@ private fun AppTopBar(
 @Composable
 private fun ConsultScreen(onConsult: () -> Unit) {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .systemBarsPadding()
+            .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
         AppButton(
@@ -264,7 +278,10 @@ private fun CastScreen(onCast: (CastResult) -> Unit) {
     var allLines by rememberSaveable { mutableStateOf<List<Int>>(emptyList()) }
     var revealedCount by rememberSaveable { mutableStateOf(0) }
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .systemBarsPadding()
+            .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -333,7 +350,6 @@ private fun InterpretationScreen(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val buttons = buildSectionButtons(hasChangingLines)
-    val columns = if (isLandscape) 3 else 2
 
     Column(
         modifier = Modifier
@@ -364,13 +380,36 @@ private fun InterpretationScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
-                SectionGrid(
-                    buttons = buttons,
-                    columns = columns,
-                    selected = section,
-                    onSelect = { section = it },
-                    modifier = Modifier.weight(1f)
-                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    SectionButtonsColumn(
+                        buttons = buttons,
+                        selected = section,
+                        onSelect = { section = it }
+                    )
+                    val scrollState = rememberScrollState()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(scrollState)
+                        ) {
+                            Text(
+                                text = sectionText(entry, cast, section),
+                                color = AppColors.TextSecondary,
+                                fontSize = 15.sp,
+                                lineHeight = 22.sp,
+                                textAlign = TextAlign.Start
+                            )
+                        }
+                    }
+                }
             }
         } else {
             Text(
@@ -390,27 +429,31 @@ private fun InterpretationScreen(
             )
             SectionGrid(
                 buttons = buttons,
-                columns = columns,
+                columns = 2,
                 selected = section,
                 onSelect = { section = it },
                 modifier = Modifier.fillMaxWidth()
             )
-        }
-
-        val scrollState = rememberScrollState()
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .verticalScroll(scrollState)
-        ) {
-            Text(
-                text = sectionText(entry, cast, section),
-                color = AppColors.TextSecondary,
-                fontSize = 15.sp,
-                lineHeight = 22.sp,
-                textAlign = TextAlign.Start
-            )
+            val scrollState = rememberScrollState()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState)
+                ) {
+                    Text(
+                        text = sectionText(entry, cast, section),
+                        color = AppColors.TextSecondary,
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp,
+                        textAlign = TextAlign.Start
+                    )
+                }
+            }
         }
     }
 }
@@ -443,7 +486,7 @@ private fun HexagramViewerScreen(repository: HexagramRepository) {
                 horizontalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 Column(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(0.45f),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
@@ -467,13 +510,37 @@ private fun HexagramViewerScreen(repository: HexagramRepository) {
                         options = trigramOptions
                     )
                 }
-                SectionGrid(
-                    buttons = buildSectionButtons(false),
-                    columns = 3,
-                    selected = section,
-                    onSelect = { section = it },
-                    modifier = Modifier.weight(1f)
-                )
+                Column(
+                    modifier = Modifier.weight(0.55f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    SectionButtonsColumn(
+                        buttons = buildSectionButtons(false),
+                        selected = section,
+                        onSelect = { section = it }
+                    )
+                    val scrollState = rememberScrollState()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(scrollState)
+                        ) {
+                            val text = entry?.let { viewerSectionText(it, section) } ?: "No entry found."
+                            Text(
+                                text = text,
+                                color = AppColors.TextSecondary,
+                                fontSize = 15.sp,
+                                lineHeight = 22.sp,
+                                textAlign = TextAlign.Start
+                            )
+                        }
+                    }
+                }
             }
         } else {
             Text(
@@ -505,23 +572,27 @@ private fun HexagramViewerScreen(repository: HexagramRepository) {
                 onSelect = { section = it },
                 modifier = Modifier.fillMaxWidth()
             )
-        }
-
-        val scrollState = rememberScrollState()
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .verticalScroll(scrollState)
-        ) {
-            val text = entry?.let { viewerSectionText(it, section) } ?: "No entry found."
-            Text(
-                text = text,
-                color = AppColors.TextSecondary,
-                fontSize = 15.sp,
-                lineHeight = 22.sp,
-                textAlign = TextAlign.Start
-            )
+            val scrollState = rememberScrollState()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState)
+                ) {
+                    val text = entry?.let { viewerSectionText(it, section) } ?: "No entry found."
+                    Text(
+                        text = text,
+                        color = AppColors.TextSecondary,
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp,
+                        textAlign = TextAlign.Start
+                    )
+                }
+            }
         }
     }
 }
@@ -570,7 +641,7 @@ private fun TrigramSelector(
             color = AppColors.TextSecondary,
             fontSize = 12.sp
         )
-        Box {
+        Box(modifier = Modifier.fillMaxWidth()) {
             AppButton(
                 text = selected.uppercase(),
                 onClick = { expanded = true },
@@ -579,12 +650,13 @@ private fun TrigramSelector(
             )
             DropdownMenu(
                 expanded = expanded,
-                onDismissRequest = { expanded = false }
+                onDismissRequest = { expanded = false },
+                modifier = Modifier
+                    .background(AppColors.MenuBackground, RoundedCornerShape(12.dp))
+                    .padding(6.dp)
+                    .widthIn(min = AppDimens.MenuMinWidth)
             ) {
                 Column(
-                    modifier = Modifier
-                        .background(AppColors.MenuBackground, RoundedCornerShape(10.dp))
-                        .padding(6.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     options.forEachIndexed { index, option ->
@@ -607,7 +679,10 @@ private fun TrigramSelector(
 @Composable
 private fun PlaceholderScreen(title: String) {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .systemBarsPadding()
+            .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -624,6 +699,7 @@ private fun AppButton(
     onClick: () -> Unit,
     selected: Boolean = false,
     style: AppButtonStyle = AppButtonStyle.FILLED,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val background = when (style) {
@@ -633,15 +709,51 @@ private fun AppButton(
     }
     Button(
         onClick = onClick,
+        enabled = enabled,
         colors = ButtonDefaults.buttonColors(
             containerColor = background,
-            contentColor = AppColors.TextPrimary
+            contentColor = AppColors.TextPrimary,
+            disabledContainerColor = AppColors.ButtonDisabled,
+            disabledContentColor = AppColors.TextSecondary
         ),
-        shape = RoundedCornerShape(8.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+        shape = RoundedCornerShape(AppDimens.ButtonCornerRadius),
+        contentPadding = PaddingValues(
+            horizontal = AppDimens.ButtonHorizontalPadding,
+            vertical = AppDimens.ButtonVerticalPadding
+        ),
         modifier = modifier
+            .defaultMinSize(minHeight = AppDimens.ButtonMinHeight)
+            .heightIn(min = AppDimens.ButtonMinHeight)
     ) {
-        Text(text = text, fontSize = 13.sp)
+        Text(
+            text = text,
+            fontSize = AppDimens.ButtonTextSize,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            softWrap = false
+        )
+    }
+}
+
+@Composable
+private fun AppIconButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = modifier
+            .size(AppDimens.IconButtonSize)
+    ) {
+        Text(
+            text = text,
+            color = AppColors.TextPrimary,
+            fontSize = AppDimens.IconButtonTextSize,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            softWrap = false
+        )
     }
 }
 
@@ -683,11 +795,15 @@ private fun HexagramLine(
     val gap = 18.dp
     val isCast = state != LineState.UNCAST
     val targetAlpha = if (isCast) 1f else 0.35f
-    val alpha by animateFloatAsState(
-        targetValue = if (animate) targetAlpha else 1f,
-        animationSpec = tween(durationMillis = 200),
-        label = "lineAlpha"
-    )
+    val alpha = if (animate) {
+        animateFloatAsState(
+            targetValue = targetAlpha,
+            animationSpec = tween(durationMillis = 200),
+            label = "lineAlpha"
+        ).value
+    } else {
+        targetAlpha
+    }
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
@@ -794,6 +910,34 @@ private fun buildSectionButtons(hasChangingLines: Boolean): List<Section> {
     return buttons
 }
 
+@Composable
+private fun SectionButtonsColumn(
+    buttons: List<Section>,
+    selected: Section,
+    onSelect: (Section) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(AppDimens.GridSpacing)
+    ) {
+        for (section in buttons) {
+            val label = when (section) {
+                Section.DESCRIPTION -> "DESCRIPTION"
+                Section.JUDGMENT -> "THE JUDGMENT"
+                Section.IMAGE -> "THE IMAGE"
+                Section.CHANGING_LINES -> "CHANGING LINES"
+            }
+            AppButton(
+                text = label,
+                selected = section == selected,
+                onClick = { onSelect(section) },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
 private fun trigramOptions(): List<TrigramOption> {
     return listOf(
         TrigramOption("Heaven", intArrayOf(1, 1, 1)),
@@ -824,36 +968,30 @@ private fun SectionGrid(
     onSelect: (Section) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val rows = buttons.chunked(columns)
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+    val rows = if (columns <= 0) 0 else (buttons.size + columns - 1) / columns
+    val gridHeight = if (rows == 0) 0.dp else {
+        (AppDimens.ButtonMinHeight * rows) + (AppDimens.GridSpacing * (rows - 1))
+    }
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(columns),
+        modifier = modifier.height(gridHeight),
+        horizontalArrangement = Arrangement.spacedBy(AppDimens.GridSpacing),
+        verticalArrangement = Arrangement.spacedBy(AppDimens.GridSpacing),
+        userScrollEnabled = false
     ) {
-        for (row in rows) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                for (section in row) {
-                    val label = when (section) {
-                        Section.DESCRIPTION -> "DESCRIPTION"
-                        Section.JUDGMENT -> "THE JUDGMENT"
-                        Section.IMAGE -> "THE IMAGE"
-                        Section.CHANGING_LINES -> "CHANGING LINES"
-                    }
-                    AppButton(
-                        text = label,
-                        selected = section == selected,
-                        onClick = { onSelect(section) },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                if (row.size < columns) {
-                    repeat(columns - row.size) {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-                }
+        items(buttons) { section ->
+            val label = when (section) {
+                Section.DESCRIPTION -> "DESCRIPTION"
+                Section.JUDGMENT -> "THE JUDGMENT"
+                Section.IMAGE -> "THE IMAGE"
+                Section.CHANGING_LINES -> "CHANGING LINES"
             }
+            AppButton(
+                text = label,
+                selected = section == selected,
+                onClick = { onSelect(section) },
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -865,6 +1003,19 @@ private object AppColors {
     val UncastLine = Color(0xFF6C7076)
     val ButtonIdle = Color(0xFF1D2025)
     val ButtonSelected = Color(0xFF2A2D33)
+    val ButtonDisabled = Color(0xFF15181C)
     val MenuBackground = Color(0xFF14171B)
     val MenuButton = Color(0xFF1A1D21)
+}
+
+private object AppDimens {
+    val ButtonMinHeight = 48.dp
+    val ButtonHorizontalPadding = 16.dp
+    val ButtonVerticalPadding = 12.dp
+    val ButtonCornerRadius = 10.dp
+    val ButtonTextSize = 13.sp
+    val IconButtonSize = 48.dp
+    val IconButtonTextSize = 20.sp
+    val GridSpacing = 10.dp
+    val MenuMinWidth = 200.dp
 }
