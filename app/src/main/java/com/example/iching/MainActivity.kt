@@ -8,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,7 +21,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -30,15 +30,14 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Divider
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,7 +53,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -67,16 +65,32 @@ import com.example.iching.domain.changingLines
 import com.example.iching.domain.primaryBits
 import com.example.iching.domain.toKey
 import com.example.iching.ui.theme.IChingTheme
+import androidx.activity.compose.BackHandler
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        configureImmersiveMode()
         setContent {
             IChingTheme {
                 IChingApp(onExit = { finish() })
             }
         }
+    }
+
+    private fun configureImmersiveMode() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        controller.hide(WindowInsetsCompat.Type.systemBars())
+        controller.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     }
 }
 
@@ -104,7 +118,6 @@ private enum class LineState {
 
 private enum class AppButtonStyle {
     FILLED,
-    GHOST,
     MENU
 }
 
@@ -120,27 +133,56 @@ private fun IChingApp(onExit: () -> Unit) {
         HexagramRepository(context.applicationContext.assets).also { it.load() }
     }
     val navController = rememberNavController()
-    var menuExpanded by remember { mutableStateOf(false) }
     var castSeed by rememberSaveable { mutableStateOf<Long?>(null) }
     var castLines by rememberSaveable { mutableStateOf<List<Int>?>(null) }
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = AppColors.Background,
-        topBar = {
-            AppTopBar(
-                menuExpanded = menuExpanded,
-                onMenuExpandedChange = { menuExpanded = it },
-                navController = navController,
-                onExit = onExit
-            )
+    BackHandler(drawerState.isOpen) {
+        scope.launch { drawerState.close() }
+    }
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        gesturesEnabled = true,
+        drawerContent = {
+            ModalDrawerSheet(
+                drawerContainerColor = AppColors.Background,
+                drawerTonalElevation = 0.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .systemBarsPadding()
+                        .padding(top = 24.dp, bottom = 16.dp)
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    AppMenuItem(text = "History", onClick = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate(Routes.HISTORY)
+                    })
+                    AppMenuItem(text = "Hexagram Viewer", onClick = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate(Routes.VIEWER)
+                    })
+                    AppMenuItem(text = "Settings", onClick = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate(Routes.SETTINGS)
+                    })
+                    AppMenuItem(text = "Exit", onClick = {
+                        scope.launch { drawerState.close() }
+                        onExit()
+                    })
+                }
+            }
         }
-    ) { padding ->
+    ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(AppColors.Background)
-                .padding(padding)
+                .systemBarsPadding()
         ) {
             NavHost(
                 navController = navController,
@@ -183,85 +225,10 @@ private fun IChingApp(onExit: () -> Unit) {
 }
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
-private fun AppTopBar(
-    menuExpanded: Boolean,
-    onMenuExpandedChange: (Boolean) -> Unit,
-    navController: NavHostController,
-    onExit: () -> Unit
-) {
-    TopAppBar(
-        title = {},
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = AppColors.Background,
-            scrolledContainerColor = AppColors.Background
-        ),
-        actions = {
-            Box {
-                AppIconButton(
-                    text = "≡",
-                    onClick = { onMenuExpandedChange(true) }
-                )
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { onMenuExpandedChange(false) },
-                    modifier = Modifier
-                        .background(AppColors.MenuBackground, RoundedCornerShape(12.dp))
-                        .padding(6.dp)
-                        .widthIn(min = AppDimens.MenuMinWidth)
-                ) {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        AppButton(
-                            text = "History",
-                            onClick = {
-                                onMenuExpandedChange(false)
-                                navController.navigate(Routes.HISTORY)
-                            },
-                            style = AppButtonStyle.MENU,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        AppButton(
-                            text = "Hexagram Viewer",
-                            onClick = {
-                                onMenuExpandedChange(false)
-                                navController.navigate(Routes.VIEWER)
-                            },
-                            style = AppButtonStyle.MENU,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        AppButton(
-                            text = "Settings",
-                            onClick = {
-                                onMenuExpandedChange(false)
-                                navController.navigate(Routes.SETTINGS)
-                            },
-                            style = AppButtonStyle.MENU,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        AppButton(
-                            text = "Exit",
-                            onClick = {
-                                onMenuExpandedChange(false)
-                                onExit()
-                            },
-                            style = AppButtonStyle.MENU,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            }
-        }
-    )
-}
-
-@Composable
 private fun ConsultScreen(onConsult: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .systemBarsPadding()
             .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -280,7 +247,6 @@ private fun CastScreen(onCast: (CastResult) -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .systemBarsPadding()
             .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -298,13 +264,6 @@ private fun CastScreen(onCast: (CastResult) -> Unit) {
                 uncastColor = AppColors.UncastLine,
                 modifier = Modifier.fillMaxWidth(0.7f)
             )
-            if (revealedCount > 0) {
-                Text(
-                    text = "Line $revealedCount of 6",
-                    color = AppColors.TextSecondary,
-                    fontSize = 14.sp
-                )
-            }
             AppButton(
                 text = "TOSS COINS",
                 onClick = {
@@ -681,7 +640,6 @@ private fun PlaceholderScreen(title: String) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .systemBarsPadding()
             .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -704,8 +662,7 @@ private fun AppButton(
 ) {
     val background = when (style) {
         AppButtonStyle.FILLED -> if (selected) AppColors.ButtonSelected else AppColors.ButtonIdle
-        AppButtonStyle.GHOST -> Color.Transparent
-        AppButtonStyle.MENU -> AppColors.MenuButton
+        AppButtonStyle.MENU -> Color.Transparent
     }
     Button(
         onClick = onClick,
@@ -736,23 +693,29 @@ private fun AppButton(
 }
 
 @Composable
-private fun AppIconButton(
+private fun AppMenuItem(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    IconButton(
-        onClick = onClick,
+    Column(
         modifier = modifier
-            .size(AppDimens.IconButtonSize)
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = AppDimens.ButtonMinHeight)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 10.dp)
     ) {
         Text(
             text = text,
             color = AppColors.TextPrimary,
-            fontSize = AppDimens.IconButtonTextSize,
+            fontSize = AppDimens.ButtonTextSize,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             softWrap = false
+        )
+        Divider(
+            color = AppColors.MenuDivider,
+            modifier = Modifier.padding(top = 10.dp)
         )
     }
 }
@@ -1006,6 +969,7 @@ private object AppColors {
     val ButtonDisabled = Color(0xFF15181C)
     val MenuBackground = Color(0xFF14171B)
     val MenuButton = Color(0xFF1A1D21)
+    val MenuDivider = Color(0xFF24272C)
 }
 
 private object AppDimens {
@@ -1014,8 +978,6 @@ private object AppDimens {
     val ButtonVerticalPadding = 12.dp
     val ButtonCornerRadius = 10.dp
     val ButtonTextSize = 13.sp
-    val IconButtonSize = 48.dp
-    val IconButtonTextSize = 20.sp
     val GridSpacing = 10.dp
     val MenuMinWidth = 200.dp
 }
